@@ -38,7 +38,27 @@ Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker,
 7. In Settings → Developer, confirm `postgres-mcp` shows status **running**.
 8. Try it in a chat: *"What columns does the employees table have?"*
 
-Screenshots of a full working validation run (schema discovery, aggregation query, top-salary query, connected badge, `docker ps`) are in `docs/screenshots/`.
+## Validation Screenshots
+
+Live end-to-end proof the MCP connection works — each prompt below was run directly in Claude Desktop, with the tool-call panel visible showing a real query against the live database.
+
+**Connection status**
+[![Connected badge](docs/screenshots/phase1_connected_badge.png)](docs/screenshots/phase1_connected_badge.png)
+
+**Container running**
+[![docker ps](docs/screenshots/phase1_docker_ps.png)](docs/screenshots/phase1_docker_ps.png)
+
+**Prompt 1 — Schema discovery:** *"What columns does the employees table have?"*
+[![Schema query](docs/screenshots/phase1_query_schema.png)](docs/screenshots/phase1_query_schema.png)
+
+**Prompt 2 — Aggregation:** *"What's the average salary by department in the employees table?"*
+[![Aggregation query](docs/screenshots/phase1_query_aggregation.png)](docs/screenshots/phase1_query_aggregation.png)
+
+**Prompt 3 — Query generation:** *"Write and run a query to find the highest-paid employee in the employees table."*
+[![Top salary query](docs/screenshots/phase1_query_topquery.png)](docs/screenshots/phase1_query_topquery.png)
+
+**Prompt 4 — Code generation:** *"Write a Python script that pulls data from this database and plots a bar chart of salaries grouped by employee name."*
+[![Codegen query](docs/screenshots/phase1_query_codegen.png)](docs/screenshots/phase1_query_codegen.png)
 
 ## Gotchas (found the hard way)
 
