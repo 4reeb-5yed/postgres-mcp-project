@@ -58,7 +58,7 @@ Live end-to-end proof the MCP connection works — each prompt below was run dir
 [![Top salary query](docs/screenshots/phase1_query_topquery.png)](docs/screenshots/phase1_query_topquery.png)
 
 **Prompt 4 — Code generation:** *"Write a Python script that pulls data from this database and plots a bar chart of salaries grouped by employee name."*
-[![Codegen query](docs/screenshots/phase1_query_codegen.png)](docs/screenshots/phase1_query_codegen.png)
+[![Codegen query](docs/screenshots/phase1_query_codegen_full.png)](docs/screenshots/phase1_query_codegen_full.png)
 
 ## Gotchas (found the hard way)
 
