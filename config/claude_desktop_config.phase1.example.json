@@ -1,15 +1,12 @@
 {
   "mcpServers": {
-    "postgres-docker-mcp": {
-      "command": "docker",
+    "postgres-mcp": {
+      "command": "uvx",
       "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "DATABASE_URL=postgresql://postgres:REPLACE_WITH_YOUR_PASSWORD@host.docker.internal:5432/postgres",
-        "-e", "POSTGRES_READ_ONLY=true",
-        "openmcpserver/mcp-postgres:latest"
+        "--with",
+        "mcp<2.0.0",
+        "postgres-mcp",
+        "postgresql://postgres:<YOUR_PASSWORD>@localhost:5433/postgres"
       ]
     }
   }
