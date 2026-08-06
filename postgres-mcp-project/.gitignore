@@ -1,0 +1,11 @@
+# Real secrets — never commit
+.env
+claude_desktop_config.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Local docker volumes if any get created
+pgdata/

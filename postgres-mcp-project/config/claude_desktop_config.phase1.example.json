@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "postgres-docker-mcp": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DATABASE_URL=postgresql://postgres:REPLACE_WITH_YOUR_PASSWORD@host.docker.internal:5432/postgres",
+        "-e", "POSTGRES_READ_ONLY=true",
+        "openmcpserver/mcp-postgres:latest"
+      ]
+    }
+  }
+}
