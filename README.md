@@ -6,9 +6,14 @@ Built as part of an internship project. Full build log and design decisions: see
 
 ## Architecture
 
-**Phase 1 — Docker + Claude Desktop**
+**Phase 1a — Docker + Claude Desktop (PostgreSQL)**
 ```
 Claude Desktop  --MCP (stdio, via uvx)-->  postgres-mcp  --SQL-->  Postgres (Docker, port 5433)
+```
+
+**Phase 1b — Docker + Claude Desktop (MySQL)**
+```
+Claude Desktop  --MCP (stdio, via uvx)-->  mysql-mcp  --SQL-->  MySQL (Docker, port 3306)
 ```
 
 **Phase 2 — Fully local with Ollama**
@@ -19,21 +24,22 @@ Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker,
 ## Status
 
 - [x] Plan written
-- [x] Phase 1: Docker + Claude Desktop — **working**, validated end-to-end
+- [x] Phase 1a: Docker + Claude Desktop (PostgreSQL) — **working**, validated end-to-end
+- [x] Phase 1b: Docker + Claude Desktop (MySQL) — **working**, validated end-to-end
 - [ ] Phase 2: Ollama, fully local — not started
 
-## Quick Start (Phase 1, Windows)
+## Quick Start — Phase 1a: Docker + Claude Desktop (PostgreSQL, Windows)
 
 1. Make sure Docker Desktop is running (`docker ps` should return without error).
 2. Copy `.env.example` to `.env` and set a real password.
 3. Start the database: `.\scripts\phase1_start_db.ps1` (starts Postgres on **port 5433** — see Gotchas below for why not 5432).
 4. Seed the schema:
    ```powershell
-   Get-Content sql\phase1_employees_schema.sql | docker exec -i local-postgres psql -U postgres -d postgres
+   Get-Content sql\postgres\phase1_employees_schema.sql | docker exec -i local-postgres psql -U postgres -d postgres
    ```
 5. Open Claude Desktop → **Settings → Developer → Edit Config**. This opens the real config file directly — on Windows, packaged-app installs of Claude Desktop do **not** use the usual `%APPDATA%\Claude\` path; the actual file lives under
    `AppData\Local\Packages\<package-id>\LocalCache\Roaming\Claude\claude_desktop_config.json`.
-   Add the contents of `config/claude_desktop_config.phase1.example.json` to the `mcpServers` key, filling in your real password.
+   Add the contents of `config/postgres/claude_desktop_config.example.json` to the `mcpServers` key, filling in your real password.
 6. Fully quit and reopen Claude Desktop (system tray → Quit, not just closing the window).
 7. In Settings → Developer, confirm `postgres-mcp` shows status **running**.
 8. Try it in a chat: *"What columns does the employees table have?"*
@@ -43,22 +49,22 @@ Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker,
 Live end-to-end proof the MCP connection works — each prompt below was run directly in Claude Desktop, with the tool-call panel visible showing a real query against the live database.
 
 **Connection status**
-[![Connected badge](docs/screenshots/phase1_connected_badge.png)](docs/screenshots/phase1_connected_badge.png)
+[![Connected badge](docs/screenshots/postgres/phase1_connected_badge.png)](docs/screenshots/postgres/phase1_connected_badge.png)
 
 **Container running**
-[![docker ps](docs/screenshots/phase1_docker_ps.png)](docs/screenshots/phase1_docker_ps.png)
+[![docker ps](docs/screenshots/postgres/phase1_docker_ps.png)](docs/screenshots/postgres/phase1_docker_ps.png)
 
 **Prompt 1 — Schema discovery:** *"What columns does the employees table have?"*
-[![Schema query](docs/screenshots/phase1_query_schema.png)](docs/screenshots/phase1_query_schema.png)
+[![Schema query](docs/screenshots/postgres/phase1_query_schema.png)](docs/screenshots/postgres/phase1_query_schema.png)
 
 **Prompt 2 — Aggregation:** *"What's the average salary by department in the employees table?"*
-[![Aggregation query](docs/screenshots/phase1_query_aggregation.png)](docs/screenshots/phase1_query_aggregation.png)
+[![Aggregation query](docs/screenshots/postgres/phase1_query_aggregation.png)](docs/screenshots/postgres/phase1_query_aggregation.png)
 
 **Prompt 3 — Query generation:** *"Write and run a query to find the highest-paid employee in the employees table."*
-[![Top salary query](docs/screenshots/phase1_query_topquery.png)](docs/screenshots/phase1_query_topquery.png)
+[![Top salary query](docs/screenshots/postgres/phase1_query_topquery.png)](docs/screenshots/postgres/phase1_query_topquery.png)
 
 **Prompt 4 — Code generation:** *"Write a Python script that pulls data from this database and plots a bar chart of salaries grouped by employee name."*
-[![Codegen query](docs/screenshots/phase1_query_codegen.png)](docs/screenshots/phase1_query_codegen.png)
+[![Codegen query](docs/screenshots/postgres/phase1_query_codegen.png)](docs/screenshots/postgres/phase1_query_codegen.png)
 
 ## Gotchas (found the hard way)
 
@@ -80,6 +86,49 @@ Documenting these because the original setup guide didn't cover any of them, and
   **Fix** — remapped the container to **port 5433** instead of fighting for 5432.
 
 - `POSTGRES_PASSWORD` only takes effect the *first* time a container's data volume is initialized. If auth fails against a container you're sure has the right env var, check whether the volume predates that env var — `ALTER USER postgres WITH PASSWORD '...'` from inside the container (via `docker exec`) can resync it without a full rebuild.
+
+## MySQL Implementation — Phase 1b: Docker + Claude Desktop (MySQL)
+
+The same guide, implemented a second time against MySQL instead of Postgres — same architecture pattern, run side by side with the Postgres setup above (both MCP connections can be active in Claude Desktop at once).
+
+**Architecture**
+```
+Claude Desktop  --MCP (stdio, via uvx)-->  mysql-mcp  --SQL-->  MySQL (Docker, port 3306)
+```
+
+**Setup**
+
+1. Start the MySQL container:
+   ```powershell
+   docker run -d --name local-mysql -e MYSQL_ROOT_PASSWORD=changeme -e MYSQL_DATABASE=testdb -p 3306:3306 mysql:8
+   ```
+   Give it ~30 seconds to finish initializing before connecting.
+
+2. Seed the schema:
+   ```powershell
+   docker exec -i local-mysql mysql -uroot -pchangeme testdb < sql\mysql\employees_schema.sql
+   ```
+   (Uses a different sample dataset from the Postgres version — Ethan Walker, Priya Sharma, Marcus Lee, Sofia Rossi, Noah Kim — deliberately, to keep the two databases visibly distinct when testing both at once.)
+
+3. Add the contents of `config/mysql/claude_desktop_config.example.json` to the `mcpServers` key in Claude Desktop's config, alongside the existing `postgres-mcp` entry — don't remove it, both run independently.
+
+4. Fully quit and reopen Claude Desktop, confirm `mysql-mcp` shows status **running** in Settings → Developer.
+
+5. Since two databases are connected at once, be explicit about which one a prompt should hit, e.g. *"Using the MySQL connection, what columns does the employees table have?"*
+
+**Validation**
+
+The same 4 prompts from the original guide, run live against MySQL:
+
+[![Schema query](docs/screenshots/mysql/mysql_query_schema.png)](docs/screenshots/mysql/mysql_query_schema.png)
+[![Aggregation query](docs/screenshots/mysql/mysql_query_aggregation.png)](docs/screenshots/mysql/mysql_query_aggregation.png)
+[![Top salary query](docs/screenshots/mysql/mysql_query_topquery.png)](docs/screenshots/mysql/mysql_query_topquery.png)
+[![Codegen query](docs/screenshots/mysql/mysql_query_codegen.png)](docs/screenshots/mysql/mysql_query_codegen.png)
+
+**Notes**
+
+- `mysql-mcp-server` (installed via `uvx --from mysql-mcp-server mysql_mcp_server`) worked cleanly on the first attempt — no dependency pinning or version workaround needed, unlike `postgres-mcp`'s `mcp` 2.0.0 breaking-change issue documented above.
+- On the code-generation validation prompt, Claude's execution sandbox couldn't reach the local MySQL instance directly over the network (it only has access to package registries). It generated a correct standalone Python script instead, along with a chart image rendered from the live-queried data pulled via the MCP connection itself — so the underlying data is still real and live, just the final plotting step ran outside the sandbox.
 
 ## Security Notes
 
