@@ -1,6 +1,6 @@
 # Local Postgres + MCP Integration
 
-Connecting an AI assistant to a local PostgreSQL database via the Model Context Protocol (MCP) — two configurations: a cloud-model version (Claude Desktop) and a fully local, offline version (Ollama).
+Connecting an AI assistant to local databases (PostgreSQL, MySQL, SQL Server, SQLite) via the Model Context Protocol (MCP), running through Claude Desktop.
 
 Built as part of an internship project. Full build log and design decisions: see [PLAN.md](./PLAN.md).
 
@@ -26,19 +26,13 @@ Claude Desktop  --MCP (stdio, via pip-installed sql-mcp-server)-->  sql-assistan
 Claude Desktop  --MCP (stdio, via uvx)-->  sqlite-mcp  --SQL-->  SQLite (local file, no container)
 ```
 
-**Phase 2 — Fully local with Ollama**
-```
-Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker, local)
-```
-
 ## Status
 
 - [x] Plan written
 - [x] Phase 1a: Docker + Claude Desktop (PostgreSQL) — **working**, validated end-to-end
 - [x] Phase 1b: Docker + Claude Desktop (MySQL) — **working**, validated end-to-end
-- [ ] Phase 1c: Docker + Claude Desktop (MS SQL Server) — setup documented, screenshots pending
-- [ ] Phase 1d: Claude Desktop (SQLite) — setup documented, screenshots pending
-- [ ] Phase 2: Ollama, fully local — not started
+- [x] Phase 1c: Docker + Claude Desktop (MS SQL Server) — **working**, validated end-to-end
+- [x] Phase 1d: Claude Desktop (SQLite) — **working**, validated end-to-end
 
 ## Quick Start — Phase 1a: Docker + Claude Desktop (PostgreSQL, Windows)
 
@@ -175,7 +169,14 @@ Claude Desktop  --MCP (stdio, via pip-installed sql-mcp-server)-->  sql-assistan
 
 **Note** — if you see `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`, that's pip's Python dependency resolution pulling in `mcp` 2.0.0 instead of the 1.x line `sql-mcp-server` expects — the `pip install "mcp<2.0.0" --force-reinstall` in step 4 pins it.
 
-**Validation** — screenshots pending, will be added to `docs/screenshots/mssql/` once captured from a live Claude Desktop session.
+**Validation**
+
+The same 4 prompts, run live against SQL Server:
+
+[![Schema query](docs/screenshots/mssql/mssql_query_schema.png)](docs/screenshots/mssql/mssql_query_schema.png)
+[![Aggregation query](docs/screenshots/mssql/mssql_query_aggregation.png)](docs/screenshots/mssql/mssql_query_aggregation.png)
+[![Top salary query](docs/screenshots/mssql/mssql_query_topquery.png)](docs/screenshots/mssql/mssql_query_topquery.png)
+[![Codegen query](docs/screenshots/mssql/mssql_query_codegen.png)](docs/screenshots/mssql/mssql_query_codegen.png)
 
 ## SQLite Implementation — Phase 1d: Claude Desktop (SQLite)
 
@@ -198,11 +199,18 @@ Claude Desktop  --MCP (stdio, via uvx)-->  sqlite-mcp  --SQL-->  SQLite (local f
 
 **Note** — there's no "start the database" step at all since SQLite has no server process — the whole database is just the file itself. Never commit your actual `.db` file to version control if it contains real or sensitive data; keep it local only and add it to `.gitignore`.
 
-**Validation** — screenshots pending, will be added to `docs/screenshots/sqlite/` once captured from a live Claude Desktop session.
+**Validation**
+
+The same 4 prompts, run live against SQLite:
+
+[![Schema query](docs/screenshots/sqlite/sqlite_query_schema.png)](docs/screenshots/sqlite/sqlite_query_schema.png)
+[![Aggregation query](docs/screenshots/sqlite/sqlite_query_aggregation.png)](docs/screenshots/sqlite/sqlite_query_aggregation.png)
+[![Top salary query](docs/screenshots/sqlite/sqlite_query_topquery.png)](docs/screenshots/sqlite/sqlite_query_topquery.png)
+[![Codegen query](docs/screenshots/sqlite/sqlite_query_codegen.png)](docs/screenshots/sqlite/sqlite_query_codegen.png)
 
 ## Security Notes
 
-- `POSTGRES_READ_ONLY` (Phase 2 guide) is enforced at the MCP wrapper level, not by Postgres itself — a more rigorous setup would use a dedicated read-only Postgres role via `GRANT SELECT`.
+- `POSTGRES_READ_ONLY` is enforced at the MCP wrapper level, not by Postgres itself — a more rigorous setup would use a dedicated read-only Postgres role via `GRANT SELECT`.
 - No real credentials are committed — see `.env.example` and `.gitignore`.
 - See [PLAN.md](./PLAN.md) Section 8 for the full security write-up.
 

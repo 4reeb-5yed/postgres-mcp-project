@@ -124,9 +124,8 @@ Open the GitHub repo in a browser:
 - Commit history — shows the iterative fix process, not one clean commit
 
 ### Step 6 — Close (15 sec)
-> "That's Phase 1 fully working and documented. Phase 2 — routing this
-> through a fully local model with Ollama instead of the cloud — is the
-> planned next step."
+> "That's the full setup working and documented — an AI assistant querying
+> four local databases through MCP."
 
 ---
 
@@ -160,9 +159,8 @@ would want a dedicated read-only Postgres role instead. Noted this as a
 known limitation in the README.
 
 **"How big is the database?"**
-Deliberately small — one table, four rows — because this phase is about
-proving the plumbing works end-to-end, not handling volume. Phase 2 (Ollama)
-uses a larger relational schema with two joined tables.
+Deliberately small — one table, four rows — because the focus is on
+proving the plumbing works end-to-end, not handling volume.
 
 **"What happens if you restart your laptop — does it just keep working?"**
 No — Docker containers don't auto-start on reboot by default, and Claude
