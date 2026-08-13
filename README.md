@@ -16,6 +16,16 @@ Claude Desktop  --MCP (stdio, via uvx)-->  postgres-mcp  --SQL-->  Postgres (Doc
 Claude Desktop  --MCP (stdio, via uvx)-->  mysql-mcp  --SQL-->  MySQL (Docker, port 3306)
 ```
 
+**Phase 1c — Docker + Claude Desktop (MS SQL Server)**
+```
+Claude Desktop  --MCP (stdio, via pip-installed sql-mcp-server)-->  sql-assistant  --SQL-->  SQL Server (Docker, port 1433)
+```
+
+**Phase 1d — Claude Desktop (SQLite)**
+```
+Claude Desktop  --MCP (stdio, via uvx)-->  sqlite-mcp  --SQL-->  SQLite (local file, no container)
+```
+
 **Phase 2 — Fully local with Ollama**
 ```
 Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker, local)
@@ -26,8 +36,8 @@ Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker,
 - [x] Plan written
 - [x] Phase 1a: Docker + Claude Desktop (PostgreSQL) — **working**, validated end-to-end
 - [x] Phase 1b: Docker + Claude Desktop (MySQL) — **working**, validated end-to-end
-- [ ] Phase 1c: Docker + Claude Desktop (MS SQL Server) — setup documented, see [config/mssql/README.md](./config/mssql/README.md)
-- [ ] Phase 1d: Claude Desktop (SQLite) — setup documented, see [config/sqlite/README.md](./config/sqlite/README.md)
+- [ ] Phase 1c: Docker + Claude Desktop (MS SQL Server) — setup documented, screenshots pending
+- [ ] Phase 1d: Claude Desktop (SQLite) — setup documented, screenshots pending
 - [ ] Phase 2: Ollama, fully local — not started
 
 ## Quick Start — Phase 1a: Docker + Claude Desktop (PostgreSQL, Windows)
@@ -131,6 +141,64 @@ The same 4 prompts from the original guide, run live against MySQL:
 
 - `mysql-mcp-server` (installed via `uvx --from mysql-mcp-server mysql_mcp_server`) worked cleanly on the first attempt — no dependency pinning or version workaround needed, unlike `postgres-mcp`'s `mcp` 2.0.0 breaking-change issue documented above.
 - On the code-generation validation prompt, Claude's execution sandbox couldn't reach the local MySQL instance directly over the network (it only has access to package registries). It generated a correct standalone Python script instead, along with a chart image rendered from the live-queried data pulled via the MCP connection itself — so the underlying data is still real and live, just the final plotting step ran outside the sandbox.
+
+## MS SQL Server Implementation — Phase 1c: Docker + Claude Desktop (MS SQL Server)
+
+Same pattern again, this time against SQL Server — the only one of the four that needed dependency-version debugging to get working.
+
+**Architecture**
+```
+Claude Desktop  --MCP (stdio, via pip-installed sql-mcp-server)-->  sql-assistant  --SQL-->  SQL Server (Docker, port 1433)
+```
+
+**Setup**
+
+1. Start the SQL Server container:
+   ```
+   docker run -d --name local-mssql -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<YOUR_PASSWORD>" -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+   ```
+   Give it ~30 seconds to finish initializing before connecting.
+
+2. Install the **ODBC Driver 17 for SQL Server** on the host machine — required by pyodbc, which the MCP server uses to talk to SQL Server. See https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server — note it requires admin/UAC elevation.
+
+3. Seed the schema — see `sql/mssql/books_schema.sql`.
+
+4. Install the MCP server **directly via pip, not uvx**:
+   ```
+   pip install sql-mcp-server
+   pip install "mcp<2.0.0" --force-reinstall
+   ```
+
+5. Add the contents of `config/mssql/claude_desktop_config.example.json` to the `mcpServers` key in Claude Desktop's config, filling in your real SA password.
+
+6. Fully quit and reopen Claude Desktop, confirm `sql-assistant` shows status **running** in Settings → Developer.
+
+**Note** — if you see `ModuleNotFoundError: No module named 'mcp.server.fastmcp'`, that's pip's Python dependency resolution pulling in `mcp` 2.0.0 instead of the 1.x line `sql-mcp-server` expects — the `pip install "mcp<2.0.0" --force-reinstall` in step 4 pins it.
+
+**Validation** — screenshots pending, will be added to `docs/screenshots/mssql/` once captured from a live Claude Desktop session.
+
+## SQLite Implementation — Phase 1d: Claude Desktop (SQLite)
+
+The simplest of the four — no Docker container, no server process, just a local file.
+
+**Architecture**
+```
+Claude Desktop  --MCP (stdio, via uvx)-->  sqlite-mcp  --SQL-->  SQLite (local file, no container)
+```
+
+**Setup**
+
+1. No database server to start — SQLite is just a file on disk. Point the config at an existing `.db` file, or create a new empty one.
+
+2. See `sql/sqlite/store_schema.sql` for an example schema (a small e-commerce checkout dataset — products, carts, cart_items, orders, order_items) usable to create a sample database.
+
+3. Add the contents of `config/sqlite/claude_desktop_config.example.json` to the `mcpServers` key, setting `--db-path` to the actual `.db` file.
+
+4. Fully quit and reopen Claude Desktop, confirm `sqlite-mcp` shows status **running** in Settings → Developer.
+
+**Note** — there's no "start the database" step at all since SQLite has no server process — the whole database is just the file itself. Never commit your actual `.db` file to version control if it contains real or sensitive data; keep it local only and add it to `.gitignore`.
+
+**Validation** — screenshots pending, will be added to `docs/screenshots/sqlite/` once captured from a live Claude Desktop session.
 
 ## Security Notes
 
