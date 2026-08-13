@@ -9,3 +9,6 @@ Thumbs.db
 
 # Local docker volumes if any get created
 pgdata/
+
+# Local planning/workflow artifacts — not part of the published repo
+.kiro/
