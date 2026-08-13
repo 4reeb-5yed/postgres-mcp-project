@@ -27,6 +27,7 @@ Ollama (local LLM)  --MCP-->  postgres-mcp (Docker)  --SQL-->  Postgres (Docker,
 - [x] Phase 1a: Docker + Claude Desktop (PostgreSQL) — **working**, validated end-to-end
 - [x] Phase 1b: Docker + Claude Desktop (MySQL) — **working**, validated end-to-end
 - [ ] Phase 1c: Docker + Claude Desktop (MS SQL Server) — setup documented, see [config/mssql/README.md](./config/mssql/README.md)
+- [ ] Phase 1d: Claude Desktop (SQLite) — setup documented, see [config/sqlite/README.md](./config/sqlite/README.md)
 - [ ] Phase 2: Ollama, fully local — not started
 
 ## Quick Start — Phase 1a: Docker + Claude Desktop (PostgreSQL, Windows)

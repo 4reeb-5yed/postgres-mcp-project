@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sqlite-mcp": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "mcp<2.0.0",
+        "mcp-server-sqlite",
+        "--db-path",
+        "/path/to/your/database.db"
+      ]
+    }
+  }
+}
