@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Querying Local Databases with AI — MCP Internship Project</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --color-background: #0A0E1A;
+            --color-surface: #111827;
+            --color-surface-2: #1A2332;
+            --color-primary: #22D3EE;
+            --color-accent: #818CF8;
+            --color-db: #34D399;
+            --color-warn: #FBBF24;
+            --color-text: #E5E7EB;
+            --color-muted: #9CA3AF;
+            --primitive-gradient-primary: linear-gradient(135deg, #22D3EE, #818CF8);
+            --typography-font-heading: 'Space Grotesk', sans-serif;
+            --typography-font-body: 'Inter', sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--color-background);
+            color: var(--color-text);
+            font-family: var(--typography-font-body);
+            overflow: hidden;
+        }
+        .slide-deck {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        @media (min-width: 769px) {
+            .slide-deck {
+                max-width: calc(100vh * 16 / 9);
+                max-height: calc(100vw * 9 / 16);
+                margin: auto;
+                position: absolute;
+                inset: 0;
+            }
+        }
+        .slide {
+            position: absolute;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 60px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s;
+            background: var(--color-background);
+            overflow: hidden;
+        }
+        .slide.active { opacity: 1; visibility: visible; }
+        .slide-content {
+            width: 100%;
+            max-width: 1100px;
+            max-height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+        h1, h2, h3 { font-family: var(--typography-font-heading); }
+        h1 { font-size: clamp(36px, 6vw, 72px); line-height: 1.08; }
+        .slide-title {
+            background: var(--primitive-gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 { font-size: clamp(26px, 4vw, 44px); color: var(--color-text); }
+        h3 { font-size: clamp(16px, 1.6vw, 20px); color: var(--color-primary); margin-bottom: 8px; }
+        .subtitle { color: var(--color-muted); font-size: clamp(14px, 1.6vw, 19px); max-width: 720px; line-height: 1.5; }
+        .kicker {
+            font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--color-accent); font-weight: 600;
+        }
+        .grid { display: grid; gap: 16px; width: 100%; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .card {
+            background: var(--color-surface);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .card p { color: var(--color-muted); font-size: clamp(13px, 1.3vw, 16px); line-height: 1.5; }
+        .card strong { color: var(--color-text); font-size: clamp(14px, 1.4vw, 17px); }
+        .mono { font-family: Consolas, monospace; color: var(--color-primary); font-size: 14px; }
+        .tag {
+            display: inline-block; padding: 3px 10px; border-radius: 999px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+        }
+        .tag-ai { background: rgba(129,140,248,0.15); color: #A5B4FC; }
+        .tag-mcp { background: rgba(34,211,238,0.15); color: #67E8F9; }
+        .tag-db { background: rgba(52,211,153,0.15); color: #6EE7B7; }
+        .diagram {
+            background: var(--color-surface); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 14px 18px;
+            font-family: Consolas, monospace; font-size: clamp(12px, 1.2vw, 15px);
+            color: var(--color-text); white-space: pre-wrap; text-align: left;
+            width: 100%;
+        }
+        .diagram .db { color: var(--color-db); }
+        .diagram .mcp { color: var(--color-primary); }
+        .diagram .ai { color: var(--color-accent); }
+        table { width: 100%; border-collapse: collapse; font-size: clamp(13px, 1.3vw, 16px); }
+        th { color: var(--color-primary); text-align: left; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.15); font-family: var(--typography-font-heading); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+        td { padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; color: var(--color-text); }
+        td.muted { color: var(--color-muted); }
+        .chart-wrap { display: flex; gap: 30px; align-items: center; justify-content: center; width: 100%; flex-wrap: wrap; }
+        .chart-box { width: min(38%, 380px); height: clamp(200px, 42vh, 330px); position: relative; }
+        .shot-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; width: 100%; }
+        .shot { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); background: var(--color-surface); }
+        .shot img { width: 100%; display: block; height: 130px; object-fit: cover; object-position: top; }
+        .shot span { display: block; padding: 6px 8px; font-size: 11px; color: var(--color-muted); }
+        .obstacle { background: var(--color-surface-2); border-left: 3px solid var(--color-warn); border-radius: 8px; padding: 12px 16px; text-align: left; }
+        .obstacle p { color: var(--color-muted); font-size: 14px; line-height: 1.5; }
+        .obstacle strong { color: var(--color-warn); }
+        .pill-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .stat { font-size: clamp(28px, 4.5vw, 52px); font-family: var(--typography-font-heading); background: var(--primitive-gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .stat-label { color: var(--color-muted); font-size: 13px; }
+        ul.list { text-align: left; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        ul.list li { display: flex; gap: 12px; align-items: flex-start; color: var(--color-text); font-size: clamp(14px, 1.5vw, 18px); }
+        ul.list li::before { content: "▸"; color: var(--color-primary); flex-shrink: 0; }
+        a.link { color: var(--color-primary); text-decoration: none; border-bottom: 1px dashed var(--color-primary); }
+
+        /* Animations */
+        .slide .anim { opacity: 0; }
+        .slide.active .anim.go { animation: fadeUp 0.6s ease-out forwards; }
+        .slide.active .scale.go { animation: scaleIn 0.5s ease-out forwards; }
+        .slide.active .stagger.go > * { opacity: 0; animation: fadeUp 0.5s ease-out forwards; }
+        .slide.active .stagger.go > *:nth-child(1) { animation-delay: 0.08s; }
+        .slide.active .stagger.go > *:nth-child(2) { animation-delay: 0.16s; }
+        .slide.active .stagger.go > *:nth-child(3) { animation-delay: 0.24s; }
+        .slide.active .stagger.go > *:nth-child(4) { animation-delay: 0.32s; }
+        .slide.active .stagger.go > *:nth-child(5) { animation-delay: 0.40s; }
+        .slide.active .stagger.go > *:nth-child(6) { animation-delay: 0.48s; }
+        .slide.active .stagger.go > *:nth-child(7) { animation-delay: 0.56s; }
+        .slide.active .stagger.go > *:nth-child(8) { animation-delay: 0.64s; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+
+        /* Progress + nav */
+        .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--color-primary), var(--color-accent)); transition: width 0.3s; z-index: 1000; }
+        .nav-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 20px; z-index: 1000; }
+        .nav-btn { background: rgba(255,255,255,0.1); border: none; color: var(--color-text); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; }
+        .nav-btn:hover { background: rgba(255,255,255,0.22); }
+        .slide-counter { color: rgba(255,255,255,0.6); font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .slide { padding: 32px 24px; }
+            h1 { font-size: clamp(28px, 5vw, 48px); }
+            h2 { font-size: clamp(20px, 4vw, 32px); }
+            p, li, td { font-size: clamp(14px, 2.5vw, 18px); }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .shot-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-box { width: 70%; }
+        }
+        @media (max-width: 480px) {
+            .slide { padding: 24px 16px; }
+            h1 { font-size: clamp(22px, 6vw, 36px); }
+            h2 { font-size: clamp(18px, 4.5vw, 28px); }
+            p, li, td { font-size: clamp(12px, 3vw, 16px); }
+            .nav-controls { bottom: 16px; gap: 12px; }
+            .nav-btn { width: 32px; height: 32px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="slide-deck">
+
+    <!-- 1. Title -->
+    <div class="slide active">
+        <div class="slide-content">
+            <span class="kicker anim">Internship Project · Model Context Protocol</span>
+            <h1 class="slide-title anim">Querying Local Databases with AI</h1>
+            <p class="subtitle anim">Connecting Claude Desktop to <strong style="color:var(--color-text)">PostgreSQL · MySQL · SQL Server · SQLite</strong> through MCP — one protocol, four engines, 16 validated live queries.</p>
+            <div class="pill-row anim">
+                <span class="tag tag-ai">Claude Desktop</span>
+                <span class="tag tag-mcp">MCP (stdio)</span>
+                <span class="tag tag-db">4 × SQL engines</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. The Problem -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">What I set out to solve</span>
+            <h2 class="anim">AI assistants are blind to local databases</h2>
+            <div class="grid grid-2 stagger go" style="margin-top:10px">
+                <div class="card"><strong>No native bridge</strong><p>Chat UIs have no built-in way to reach a database running on your own machine — no connection, no SQL tooling.</p></div>
+                <div class="card"><strong>Outdated guides</strong><p>Setup guides referenced dead npm packages, deprecated images, and servers that speak HTTP instead of stdio.</p></div>
+                <div class="card"><strong>Silent dependency breaks</strong><p>The <span class="mono">mcp</span> Python SDK shipped a breaking 2.0.0 with zero warning — every server crashed with <span class="mono">ModuleNotFoundError</span>.</p></div>
+                <div class="card"><strong>Multiple engines</strong><p>Postgres, MySQL, SQL Server, SQLite — each with a different MCP server, install path, and quirk.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. The Solution -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">How MCP fixes it</span>
+            <h2 class="anim">A standard bridge between AI and data</h2>
+            <div class="diagram anim" style="margin-top:8px"><span class="ai">Claude Desktop</span> <span class="mcp">── MCP (stdio) ──▶ mcp server</span> <span class="db">── SQL ──▶ local database</span></div>
+            <div class="grid grid-3" style="margin-top:10px">
+                <div class="card anim"><h3>Open standard</h3><p>Model Context Protocol defines how assistants discover and call tools — a universal contract, not a vendor API.</p></div>
+                <div class="card anim"><h3>Local &amp; private</h3><p>Everything runs on the machine over stdio. Data never leaves it — the AI talks to a wrapper, not your live systems directly.</p></div>
+                <div class="card anim"><h3>One pattern, four engines</h3><p>Same architecture implemented against 4 database engines, each with its own server but the same client wiring.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Architecture -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">System design</span>
+            <h2 class="anim">Four data flows, one client</h2>
+            <div class="grid grid-2 stagger go" style="margin-top:10px">
+                <div class="diagram">1. <span class="ai">Claude Desktop</span> <span class="mcp">--MCP(uvx)--> postgres-mcp</span> <span class="db">--SQL--> Postgres :5433</span></div>
+                <div class="diagram">2. <span class="ai">Claude Desktop</span> <span class="mcp">--MCP(uvx)--> mysql-mcp-server</span> <span class="db">--SQL--> MySQL :3306</span></div>
+                <div class="diagram">3. <span class="ai">Claude Desktop</span> <span class="mcp">--MCP(pip)--> sql-assistant</span> <span class="db">--SQL--> SQL Server :1433</span></div>
+                <div class="diagram">4. <span class="ai">Claude Desktop</span> <span class="mcp">--MCP(uvx)--> mcp-server-sqlite</span> <span class="db">--SQL--> SQLite file</span></div>
+            </div>
+            <p class="subtitle anim" style="margin-top:8px">Postgres &amp; MySQL run in Docker; SQL Server in Docker (with an ODBC driver on the host); SQLite is just a file — no container at all.</p>
+        </div>
+    </div>
+
+    <!-- 5. The Build -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Implementation</span>
+            <h2 class="anim">What each connection needed</h2>
+            <table class="anim" style="margin-top:8px">
+                <tr><th>Database</th><th>MCP server</th><th>Install</th><th>Sample data</th></tr>
+                <tr><td>PostgreSQL</td><td class="mono">postgres-mcp</td><td>uvx + pinned <span class="mono">mcp&lt;2.0.0</span></td><td class="muted">employees</td></tr>
+                <tr><td>MySQL</td><td class="mono">mysql-mcp-server</td><td>uvx — clean first try</td><td class="muted">employees (2nd dataset)</td></tr>
+                <tr><td>SQL Server</td><td class="mono">sql-mcp-server</td><td>pip + force-pinned <span class="mono">mcp</span></td><td class="muted">books</td></tr>
+                <tr><td>SQLite</td><td class="mono">mcp-server-sqlite</td><td>uvx + <span class="mono">--db-path</span></td><td class="muted">e-commerce store</td></tr>
+            </table>
+            <p class="subtitle anim" style="margin-top:10px">Distinct datasets on purpose — so a single chat session can prove which database answered.</p>
+        </div>
+    </div>
+
+    <!-- 6. Validation -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Proof it works</span>
+            <h2 class="anim">16 live queries, validated end-to-end</h2>
+            <div class="chart-wrap anim">
+                <div class="chart-box"><canvas id="validationChart"></canvas></div>
+                <div style="max-width:480px">
+                    <p class="subtitle" style="text-align:left">The same 4 prompts run against every database, with the tool-call panel visible in screenshots:</p>
+                    <ul class="list" style="margin-top:14px">
+                        <li><span class="tag tag-db">Schema</span>&nbsp; "What columns does the table have?"</li>
+                        <li><span class="tag tag-db">Aggregation</span>&nbsp; "Average salary by department"</li>
+                        <li><span class="tag tag-db">Query gen</span>&nbsp; "Find the highest-paid employee"</li>
+                        <li><span class="tag tag-db">Codegen</span>&nbsp; "Plot a chart from this data"</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="shot-grid anim" style="margin-top:16px">
+                <div class="shot"><img src="../docs/screenshots/postgres/phase1_query_schema.png" alt="Postgres schema query"><span>PostgreSQL</span></div>
+                <div class="shot"><img src="../docs/screenshots/mysql/mysql_query_aggregation.png" alt="MySQL aggregation"><span>MySQL</span></div>
+                <div class="shot"><img src="../docs/screenshots/mssql/mssql_query_topquery.png" alt="SQL Server top query"><span>SQL Server</span></div>
+                <div class="shot"><img src="../docs/screenshots/sqlite/sqlite_query_codegen.png" alt="SQLite codegen"><span>SQLite</span></div>
+                <div class="shot"><img src="../docs/screenshots/postgres/phase1_connected_badge.png" alt="Connected badge"><span>MCP status</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Obstacles -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Found the hard way</span>
+            <h2 class="anim">What broke, and how I fixed it</h2>
+            <div class="grid grid-2 stagger go" style="margin-top:10px">
+                <div class="obstacle"><strong>mcp SDK 2.0.0 breaking change</strong><p>Every server crashed with <span class="mono">ModuleNotFoundError: 'mcp.server.fastmcp'</span>. Fix: pin <span class="mono">mcp&lt;2.0.0</span>.</p></div>
+                <div class="obstacle"><strong>Wrong tool in the guide</strong><p><span class="mono">openmcpserver/mcp-postgres</span> runs an HTTP server, not stdio — useless for Claude Desktop. Fix: <span class="mono">uvx postgres-mcp</span> instead.</p></div>
+                <div class="obstacle"><strong>Deprecated packages</strong><p><span class="mono">@modelcontextprotocol/server-postgres</span> is dead; <span class="mono">@crystaldba/postgres-mcp</span> isn't on npm at all.</p></div>
+                <div class="obstacle"><strong>Port 5432 hijacked</strong><p>A native Windows Postgres service was silently intercepting connections. Fix: remapped the container to <span class="mono">:5433</span>.</p></div>
+                <div class="obstacle"><strong>uvx resolved the wrong version</strong><p>For SQL Server, uvx picked mcp 2.0.0 again. Fix: <span class="mono">pip install sql-mcp-server</span> + <span class="mono">--force-reinstall "mcp&lt;2.0.0"</span>.</p></div>
+                <div class="obstacle"><strong>Stale password volume</strong><p><span class="mono">POSTGRES_PASSWORD</span> only applies on first init. Fix: <span class="mono">ALTER USER</span> from inside the container.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Security -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Security-conscious by design</span>
+            <h2 class="anim">Credentials stay local, writes stay blocked</h2>
+            <div class="grid grid-3 stagger go" style="margin-top:10px">
+                <div class="card"><strong>Read-only by default</strong><p><span class="mono">POSTGRES_READ_ONLY=true</span> is enforced at the MCP wrapper level — the assistant can inspect, not mutate.</p></div>
+                <div class="card"><strong>No secrets in the repo</strong><p>Passwords live in gitignored <span class="mono">.env</span>; only <span class="mono">.env.example</span> placeholders are committed.</p></div>
+                <div class="card"><strong>SQLite files stay local</strong><p>The demo database is never committed — a real e-commerce schema would hold real customer data.</p></div>
+            </div>
+            <p class="subtitle anim" style="margin-top:14px">Honest limitation documented: wrapper-level read-only is weaker than a real <span class="mono">GRANT SELECT</span> role — noted as the upgrade path.</p>
+        </div>
+    </div>
+
+    <!-- 9. What I Learned -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Skills demonstrated</span>
+            <h2 class="anim">From containers to protocol-level AI</h2>
+            <div class="grid grid-3 stagger go" style="margin-top:10px">
+                <div class="card"><h3>Containerization</h3><p>Dockerized Postgres, MySQL, SQL Server — ports, volumes, init behavior, and host-to-container networking.</p></div>
+                <div class="card"><h3>Database engineering</h3><p>Schema design and seed data across four SQL dialects, from flat employees tables to relational carts/orders.</p></div>
+                <div class="card"><h3>AI tool integration</h3><p>Working knowledge of MCP: stdio servers, tool contracts, and how assistants discover &amp; call them.</p></div>
+                <div class="card"><h3>Dependency management</h3><p>Diagnosing a breaking transitive dependency, pinning versions, and escaping "works on my machine" traps.</p></div>
+                <div class="card"><h3>Security hygiene</h3><p>Credential handling, read-only enforcement, and knowing where the boundary actually is.</p></div>
+                <div class="card"><h3>Documentation &amp; debugging</h3><p>A full build log of failures, 20+ validation screenshots, and a repo structured for a portfolio.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. Links -->
+    <div class="slide">
+        <div class="slide-content">
+            <span class="kicker anim">Thanks</span>
+            <h1 class="slide-title anim">The full project lives on GitHub</h1>
+            <p class="subtitle anim" style="margin-top:6px">Step-by-step guides for all four databases, validation screenshots, and the complete planning history.</p>
+            <div class="grid grid-3 stagger go" style="margin-top:16px">
+                <div class="card"><strong>Repository</strong><p><a class="link" href="https://github.com/4reeb-5yed/postgres-mcp-project">github.com/4reeb-5yed/postgres-mcp-project</a></p></div>
+                <div class="card"><strong>Setup guides</strong><p>One README per database under <span class="mono">config/&lt;db&gt;/</span> — commands, configs, and gotchas.</p></div>
+                <div class="card"><strong>Questions?</strong><p>Happy to run a live demo — "What columns does the employees table have?"</p></div>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /.slide-deck -->
+
+    <div class="nav-controls">
+        <button class="nav-btn" onclick="prevSlide()">←</button>
+        <span class="slide-counter"><span id="current">1</span> / <span id="total">10</span></span>
+        <button class="nav-btn" onclick="nextSlide()">→</button>
+    </div>
+
+    <script>
+        let current = 1;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        document.getElementById('total').textContent = total;
+
+        function showSlide(n) {
+            if (n < 1) n = 1;
+            if (n > total) n = total;
+            current = n;
+            slides.forEach((s) => s.classList.remove('active'));
+            const active = slides[n - 1];
+            active.classList.add('active');
+            active.querySelectorAll('.go').forEach((el) => el.classList.remove('go'));
+            void active.offsetWidth;
+            active.querySelectorAll('.anim, .stagger, .scale').forEach((el) => el.classList.add('go'));
+            document.getElementById('current').textContent = n;
+            document.getElementById('progressBar').style.width = (n / total * 100) + '%';
+        }
+
+        function nextSlide() { showSlide(current + 1); }
+        function prevSlide() { showSlide(current - 1); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextSlide(); }
+            if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevSlide(); }
+            if (e.key === 'Home') { e.preventDefault(); showSlide(1); }
+            if (e.key === 'End') { e.preventDefault(); showSlide(total); }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-controls') && !e.target.closest('a')) nextSlide();
+        });
+
+        showSlide(1);
+
+        new Chart(document.getElementById('validationChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['PostgreSQL', 'MySQL', 'SQL Server', 'SQLite'],
+                datasets: [{
+                    data: [4, 4, 4, 4],
+                    backgroundColor: ['#22D3EE', '#818CF8', '#34D399', '#FBBF24'],
+                    borderColor: '#0A0E1A',
+                    borderWidth: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 12 }, padding: 14 } }
+                }
+            },
+            plugins: [{
+                id: 'centerText',
+                afterDraw(chart) {
+                    const { ctx, chartArea } = chart;
+                    const cx = (chartArea.left + chartArea.right) / 2;
+                    const cy = (chartArea.top + chartArea.bottom) / 2;
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#E5E7EB';
+                    ctx.font = "700 34px 'Space Grotesk', sans-serif";
+                    ctx.fillText('16', cx, cy - 8);
+                    ctx.fillStyle = '#9CA3AF';
+                    ctx.font = "13px Inter, sans-serif";
+                    ctx.fillText('prompts passed', cx, cy + 22);
+                }
+            }]
+        });
+    </script>
+</body>
+</html>
